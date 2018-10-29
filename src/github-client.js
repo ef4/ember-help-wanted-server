@@ -1,8 +1,8 @@
-const _ = require('lodash');
 const octokit = require('@octokit/rest')();
 
-const {orgs, labels} = require('./config');
+const { labels, orgsByLabel } = require('./config');
 const getEnv = require('./environment');
+const Issues = require('./issues');
 
 const API_TOKEN = getEnv('GITHUB_API_TOKEN');
 const PAGE_SIZE = 100; // Github's max is 100
@@ -28,13 +28,13 @@ class GithubClient {
   }
 
   buildQuery(label) {
-    let orgQuery = orgs.map(org => `org:${org}`).join(' ');
+    let orgQuery = orgsByLabel[label].map(org => `org:${org}`).join(' ');
     return `is:open ${orgQuery} label:"${label}"`;
   }
 
   async fetchIssuePage(label, page) {
     let query = this.buildQuery(label);
-  
+
     let response = await octokit.search.issues({
       q: query,
       sort: 'updated',
@@ -45,34 +45,27 @@ class GithubClient {
     return response.data.items;
   }
 
-  async fetchAllIssues(label) {
+  async fetchAllIssues(label, saveIssues) {
     let page = 0;
     let moreItems = true;
     let underPageLimit = true;
-    let allIssues = [];
 
     while(moreItems && underPageLimit) {
       page++;
       let pageData = await this.fetchIssuePage(label, page);
 
-      allIssues.push(pageData);
+      saveIssues(pageData);
 
       moreItems = pageData.total_count > (pageData.length * page);
       underPageLimit = page < MAX_PAGE_COUNT;
     }
-  
-    return allIssues;
   }
 
   async fetchIssueSet() {
-    const promises = labels.map(async (label) => {
-      return this.fetchAllIssues(label);
-    });
-    let results = await Promise.all(promises);
-
-    return _.uniqWith(_.flattenDeep(results), (a, b) => {
-      return a.id === b.id;
-    });
+    let issues = new Issues();
+    let save = issues.addIssues.bind(issues);
+    await Promise.all(labels.map(label => this.fetchAllIssues(label, save)));
+    return issues;
   }
 
   async getRateLimit() {

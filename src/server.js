@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 
 const getEnv = require('./environment');
-const filterIssues = require('./issue-filter');
+const Issues = require('./issues');
 
 const app = express();
 const PORT = getEnv('PORT');
@@ -10,7 +10,7 @@ const CORS_ORIGIN = getEnv('CORS_ORIGIN', null);
 
 class Server {
   constructor() {
-	this.issueCache = [];
+	this.issueCache = new Issues();
 	this.configureMiddleware();
 	this.initializeRoutes();
   }
@@ -29,8 +29,8 @@ class Server {
 
   initializeRoutes() {
     app.get('/github-issues', (req, res) => {
-      let group = req.query.group;
-      let results = filterIssues(this.issueCache, group);
+      let { category, q } = req.query;
+      let results = this.issueCache.lookup({ category, q });
       res.json(results);
     });
   }
