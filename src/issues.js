@@ -72,6 +72,11 @@ module.exports = class Issues {
         this._addToSearchIndex(`category:${this.categories.get(categoryRef.id).attributes.name}`, issue.id);
       }
     }
+    for (let searchableField of ['title', 'body']) {
+      for (let token of tokenize(issue.attributes[searchableField])) {
+        this._addToSearchIndex(`token:${token}`, issue.id);
+      }
+    }
   }
 
   _addToSearchIndex(key, value) {
@@ -127,11 +132,14 @@ module.exports = class Issues {
     return null;
   }
 
-  lookup({ category }) {
+  lookup({ category, q }) {
     const ALL_ISSUES = {};
     let requiredKeys = [];
     if (category) {
       requiredKeys.push(`category:${category.toLowerCase()}`);
+    }
+    if (q) {
+      requiredKeys = requiredKeys.concat(tokenize(q).map(token => `token:${token}`));
     }
     let matchingIssues = requiredKeys.reduce((matchingSet, key) => {
       if (matchingSet === ALL_ISSUES) {
@@ -189,4 +197,10 @@ function intersection(setA, setB) {
     }
   }
   return result;
+}
+
+// This is a pretty simple form of full-text search indexing. It's not
+// language-aware, it doesn't do stop words, etc.
+function tokenize(text) {
+  return text.toLowerCase().match(/(\w+)/g) || [];
 }
