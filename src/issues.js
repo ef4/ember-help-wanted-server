@@ -1,6 +1,21 @@
 const { sources, categories } = require("./config");
 const kebabCase = require("lodash/kebabCase");
 
+// By explicitly listing which GitHub fields we actually use in the app, we cut
+// the payload size almost in half.
+const neededFields = [
+  'number',
+  'title',
+  'state',
+  'created_at',
+  'updated_at',
+  'body',
+  'url',
+  'html_url',
+  'repository_url',
+  'labels',
+];
+
 module.exports = class Issues {
   constructor() {
     // These map from IDs to json:api formatted resources.
@@ -44,6 +59,9 @@ module.exports = class Issues {
     };
     let relationships = {};
     for (let [fieldName, value] of Object.entries(rawIssue)) {
+      if (!neededFields.includes(fieldName)) {
+        continue;
+      }
       switch (fieldName) {
         case "labels":
           if (value) {
@@ -132,14 +150,14 @@ module.exports = class Issues {
     return null;
   }
 
-  lookup({ category, q }) {
+  lookup({ category, query }) {
     const ALL_ISSUES = {};
     let requiredKeys = [];
     if (category) {
       requiredKeys.push(`category:${category.toLowerCase()}`);
     }
-    if (q) {
-      requiredKeys = requiredKeys.concat(tokenize(q).map(token => `token:${token}`));
+    if (query) {
+      requiredKeys = requiredKeys.concat(tokenize(query).map(token => `token:${token}`));
     }
     let matchingIssues = requiredKeys.reduce((matchingSet, key) => {
       if (matchingSet === ALL_ISSUES) {

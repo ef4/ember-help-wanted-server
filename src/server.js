@@ -29,8 +29,8 @@ class Server {
 
   initializeRoutes() {
     app.get('/github-issues', (req, res) => {
-      let { category, q } = req.query;
-      let results = this.issueCache.lookup({ category, q });
+      let { category, query } = req.query;
+      let results = this.issueCache.lookup({ category, query });
       res.json(results);
     });
   }
